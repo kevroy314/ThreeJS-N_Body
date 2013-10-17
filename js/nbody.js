@@ -12,7 +12,6 @@
  *
  */
 
-var numericalMethod = euler;
 var gravityDistanceThreshold = 0.1;
 var G = 0.0000000000667383
 
@@ -41,6 +40,8 @@ var heun = function(a,r,v,dt){
 	var new_r = r+2*v*dt;
 	return {r: new_r, v: v};
 }
+
+var numericalMethod = euler;
 
 //Body field controls all the gravitational bodies
 function GBodyField(GBodies){
