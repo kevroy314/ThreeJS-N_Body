@@ -1,173 +1,155 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<title>N-Body Simulation using Three.js</title>
-		<link rel="stylesheet" type="text/css" href="stylesheets/nbody-js.css">
+		<title>Three.js N-Body Simulation</title>
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
 	</head>
 	<body>
 		<div id="container"></div>
-		<script type="text/javascript" src="js/jquery-1.7.1.js"></script>
-		<script type="text/javascript" src="js/Three.js"></script>
+		<script type="text/javascript" src="js/three.min.js"></script>
+		<script type="text/javascript" src="js/stats.min.js"></script>
+		<script type="text/javascript" src="js/OrbitControls.js"></script>
 		<script type="text/javascript" src="js/nbody.js"></script>
 		<script type="text/javascript">
-			// declare global variables
-			var camera, scene, renderer, particleSystem;
-			var WIDTH, HEIGHT;
-			var pCOUNT = 300;
-			var bodies = new Array(pCOUNT);
-			var r, theta;
+			var container;
+			var camera,scene,renderer,group,controls;
+			var bodies = new Array();
 			var bodyField;
+			var sun,earth;
+			var skyBoxSize = 10000;
+			var sphereComplexity = 20;
+			var numUpdatesPerFrame = 4;
+			var updateDt = 1;
+			var axisLength = 250;
+			var FoV = 100;
+			var nearFieldDistance = 1;
 			
-			var $container = $('#container');
-
-			function init() {
-				WIDTH = $(window).width();
-				HEIGHT = $(window).height();
-
-				var VIEW_ANGLE = 45,
-					ASPECT = WIDTH / HEIGHT,
-					NEAR = 0.1,
-					FAR = 10000;
-
-				renderer = new THREE.WebGLRenderer();
-				camera = new THREE.PerspectiveCamera(
-					VIEW_ANGLE, ASPECT, NEAR, FAR);
-
-				scene = new THREE.Scene();
-
-				camera.position.z = 600;
-
-				renderer.setSize(WIDTH, HEIGHT);
-
-				scene.add(camera)
-
-				$container.append( renderer.domElement );
-
-				// create a sphere
-
-				var radius = 5,
-					segments = 16,
-					rings = 16;
-
-				// create a new mesh with
-				// sphere geometry - we will cover
-				// the sphereMaterial next!
-
-				var sphereMaterial = 
-					new THREE.MeshLambertMaterial(
-						{
-							color: 0xDDDDDD
-						});
-
-				sphere = new THREE.Mesh(
-
-				  new THREE.SphereGeometry(
-					radius,
-					segments,
-					rings),
-
-				  sphereMaterial);
-
-				sphere.position.x = 0;
-				sphere.position.y = 0;
-				sphere.position.z = 0;
-
-				// add the sphere to the scene
-				//scene.add(sphere);
-
-				// create particle variables
-				var particles = new THREE.Geometry;
-				var pMaterial = new THREE.ParticleBasicMaterial({
-					color: 0xFFFFFF,
-					size: 20,
-					map: THREE.ImageUtils.loadTexture("img/particle.png"),
-					blending: THREE.AdditiveBlending,
-					transparent: true
-				});
+			init();
+			animate();
+			
+			function init(){
+				//Create Camera
+				camera = new THREE.PerspectiveCamera(FoV,window.innerWidth/window.innerHeight,nearFieldDistance,skyBoxSize*Math.sqrt(3));
+				camera.position.z = 500;
 				
-
-
-				// spawn individual particles
-				for (var i = 0; i < pCOUNT; i++) {
-					r = Math.random() * (WIDTH * 0.25);
-					theta = Math.random() * Math.PI * 2.0;
-					var pX = r * Math.cos(theta),
-						pY = r * Math.sin(theta),
-						pZ = r * Math.tan(theta),
-						particle = new THREE.Vertex(
-							new THREE.Vector3(pX, pY, pZ)
-						);
-						particle.velocity = 0.0;
-						particle.accel = 0.0;
-					particles.vertices.push(particle);
-					bodies[i] = new GBody(new Vector3(pX,pY,pZ),new Vector3(0,0,0),100);
-				}
+				//Create Camera Controls
+				controls = new THREE.OrbitControls(camera);
+				controls.maxDistance = skyBoxSize*0.5; //MAGIC# to prevent skybox clipping
+				
+				//Create Scene
+				scene = new THREE.Scene();
+				
+				//Create/Add Body Group (lots of MAGIC#s)
+				group = new THREE.Object3D();
+				
+				sun = newSphereMesh(50,'img/sun.jpg');
+				group.add(sun);
+				bodies.push(new GBody(new Vector3(0,0,0),new Vector3(0,0,0),1000000000000));
+				
+				earth = newSphereMesh(10,'img/earth.jpg');
+				earth.position.x+=100;
+				group.add(earth);
+				bodies.push(new GBody(new Vector3(100,0,0),new Vector3(0.4,0.8,0.4),100));
+				
+				mars = newSphereMesh(10,'img/mars.jpg');
+				mars.position.x+=-100;
+				group.add(mars);
+				bodies.push(new GBody(new Vector3(-100,0,0),new Vector3(0.4,0.8,0.4),100));
 				
 				bodyField = new GBodyField(bodies);
 				
-				// create particle system
-				particleSystem = new THREE.ParticleSystem(
-					particles, pMaterial);
-
-				//particleSystem.sortParticles = true;
-
-				// add to scene
-				scene.add(particleSystem);
-
-
-				// create a point light
-				var pointLight =
-				  new THREE.PointLight(0xFFFFFF);
-
-				// set its position
-				pointLight.position.x = 10;
-				pointLight.position.y = 15;
-				pointLight.position.z = 300;
-
-				// add to the scene
-				//scene.add(pointLight);
-
-				var light = new THREE.DirectionalLight(0xFFFF66, 1.0);
-				light.position.set(0.5, 0.7, 1);
-				scene.add(light);
-			}
-
-			var t = 0;
-			function animate() {
-				bodyField.update(100);
-				t+=1;
-				for(var i = 0; i < bodyField.bodies.length;i++)
-					particleSystem.geometry.vertices[i].position = new THREE.Vector3(bodyField.bodies[i].pos.x,bodyField.bodies[i].pos.y,bodyField.bodies[i].pos.z);
-				particleSystem.geometry.__dirtyVertices = true;
-				renderer.render(scene, camera);
-
-				// add rotation
-				particleSystem.rotation.y += 0.001
+				scene.add(group);
 				
-				// call next frame
-				requestAnimationFrame(animate);
+				//Add Ambient Light Source
+				var light = new THREE.AmbientLight(0xffffff);
+				scene.add(light);
+				
+				//Add Axis Lines
+				var xLine = newLineObject(-axisLength,0,0,axisLength,0,0,0xff0000);
+				scene.add(xLine);
+				
+				var yLine = newLineObject(0,-axisLength,0,0,axisLength,0,0x00ff00);
+				scene.add(yLine);
+				
+				var zLine = newLineObject(0,0,-axisLength,0,0,axisLength,0x0000ff);
+				scene.add(zLine);
+				
+				//Add Skybox
+				var skyGeometry = new THREE.CubeGeometry(skyBoxSize,skyBoxSize,skyBoxSize);
+				var materialArray = [];
+				var skyBoxImg = THREE.ImageUtils.loadTexture('img/stars.jpg'); //MAGIC#
+				for (var i = 0; i < 6; i++) materialArray.push(new THREE.MeshBasicMaterial({map:skyBoxImg ,side: THREE.BackSide}));
+				var skyMaterial = new THREE.MeshFaceMaterial(materialArray);
+				var skyBox = new THREE.Mesh(skyGeometry,skyMaterial);
+				scene.add(skyBox);
+				
+				//Add Frame Rate Statistics
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				
+				//Create Renderer
+				renderer = new THREE.WebGLRenderer();
+				renderer.setSize(window.innerWidth,window.innerHeight);
+				
+				//Embed Renderer and Frame Rate Statistics Into Page
+				container = document.getElementById('container');
+				container.appendChild(renderer.domElement);
+				container.appendChild(stats.domElement);
+				
+				//Add Resize Event Listener
+				window.addEventListener('resize',onWindowResize,false);
 			}
-
-			// on load starting point
-			$(function() {
-
-				init();
-				animate();
-
-				// on window resize
-				$(window).resize(function() {
-					WIDTH = $(window).width();
-					HEIGHT = $(window).height();
-
-					// update renderer
-					renderer.setSize(WIDTH, HEIGHT);
-
-					// update camera
-					camera.aspect = WIDTH / HEIGHT;
-					camera.updateProjectionMatrix();
-				});
-
-			});
+			
+			//Window Resize Event Handler
+			function onWindowResize(){
+				//Fix Camera Aspect Ratio
+				camera.aspect = window.innerWidth/window.innerHeight;
+				camera.updateProjectionMatrix();
+				//Set Renderer Size
+				renderer.setSize(window.innerWidth,window.innerHeight);
+			}
+			
+			//Helper Function to Create a New Line Object
+			function newLineObject(x0,y0,z0,x1,y1,z1,color){
+				var lineGeometry = new THREE.Geometry();
+				var vertArray = lineGeometry.vertices;
+				vertArray.push(new THREE.Vector3(x0,y0,z0),new THREE.Vector3(x1,y1,z1));
+				lineGeometry.computeLineDistances();
+				var lineMaterial = new THREE.LineBasicMaterial({color:color});
+				var line = new THREE.Line(lineGeometry,lineMaterial);
+				return line;
+			}
+			
+			//Helper Function to Create a New Sphere Object
+			function newSphereMesh(r,texturePath){
+				var texture = THREE.ImageUtils.loadTexture(texturePath);
+				var geometry = new THREE.SphereGeometry(r,sphereComplexity,sphereComplexity);
+				var material = new THREE.MeshLambertMaterial({map:texture,overdraw:true});
+				var mesh = new THREE.Mesh(geometry,material);
+				return mesh;
+			}
+			
+			//Animate Function (loops)
+			function animate(){
+				for(var i = 0; i < numUpdatesPerFrame;i++)
+					bodyField.update(updateDt);
+				for(var i = 0; i < group.children.length;i++)
+					group.children[i].position = new THREE.Vector3(bodyField.bodies[i].pos.x,bodyField.bodies[i].pos.y,bodyField.bodies[i].pos.z);
+				
+				renderer.render(scene, camera);
+				stats.update();
+				
+				requestAnimationFrame(animate);
+				
+				controls.update();
+			}
 		</script>
 	</body>
 </html>

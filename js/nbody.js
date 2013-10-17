@@ -12,37 +12,34 @@
  *
  */
 
- var rk4 = function(a,r,v,dt){
-        var a0    = a*r;
-        var a1    = a*(r + 0.5*dt*v + 0.125*dt*dt*a0);
-        var a2    = a*(r +     dt*v + 0.500*dt*dt*a1);
-        var new_r =    r +     dt*v + ((a0+2*a1)*dt*dt)/6;
-        return {r: new_r, v: v};
-}
+var numericalMethod = euler;
+var gravityDistanceThreshold = 0.1;
+var G = 0.0000000000667383
 
-var euler = function(a,r,v,dt){
-        var new_v = v+a*dt;
-        var new_r = r+v*dt+0.5*a*dt*dt;
-        return {r: new_r, v: new_v}
-}
-
-var heun = function(a,r,v,dt){
-        //var new_v = v+2*a*dt;
-        var new_r = r+2*v*dt;
-        return {r: new_r, v: v};
-}
- 
- var numericalMethod = euler;
- 
- var gravityDistanceThreshold = 0.1;
- var G = .00001;
- //var G = 0.0000000000667383
- 
 //Simple Vector Object
 function Vector3(X,Y,Z){
 	this.x = X;
 	this.y = Y;
 	this.z = Z;
+}
+ 
+var rk4 = function(a,r,v,dt){
+	var a0    = a*r;
+	var a1    = a*(r + 0.5*dt*v + 0.125*dt*dt*a0);
+	var a2    = a*(r +     dt*v + 0.500*dt*dt*a1);
+	var new_r =    r +     dt*v + ((a0+2*a1)*dt*dt)/6;
+	return {r: new_r, v: v};
+}
+
+var euler = function(a,r,v,dt){
+	var new_v = v+a*dt;
+	var new_r = r+v*dt+0.5*a*dt*dt;
+	return {r: new_r, v: new_v}
+}
+
+var heun = function(a,r,v,dt){
+	var new_r = r+2*v*dt;
+	return {r: new_r, v: v};
 }
 
 //Body field controls all the gravitational bodies
@@ -54,19 +51,11 @@ function GBodyField(GBodies){
 			forceArray[i] = new Array(this.bodies.length-i);
 			var netForce = new Vector3(0,0,0); //Generate a net force for an object
 			for(var j = 0; j < this.bodies.length;j++){ //For each object
-				if(j<i){ //If we have computed this force before, look it up and rescale it to this current object mass
-					netForce.x += (forceArray[j][i].x/(this.bodies[i].pos.x-this.bodies[j].pos.x))*(this.bodies[j].pos.x-this.bodies[i].pos.x);
-					netForce.y += (forceArray[j][i].y/(this.bodies[i].pos.y-this.bodies[j].pos.y))*(this.bodies[j].pos.y-this.bodies[i].pos.y);
-					netForce.z += (forceArray[j][i].z/(this.bodies[i].pos.z-this.bodies[j].pos.z))*(this.bodies[j].pos.z-this.bodies[i].pos.z);
-				}
-				else if (j>i){ //If we haven't computed this force before, add it to the force array
-					forceArray[i][j] = this.bodies[i].calculateForce(this.bodies[j]);
-					netForce.x += forceArray[i][j].x;
-					netForce.y += forceArray[i][j].y;
-					netForce.z += forceArray[i][j].z;
-				}
+				forceArray[i][j] = this.bodies[i].calculateForce(this.bodies[j]);
+				netForce.x += forceArray[i][j].x;
+				netForce.y += forceArray[i][j].y;
+				netForce.z += forceArray[i][j].z;
 			}
-			//Runge-Kutta
 			var new_x_vals = numericalMethod(netForce.x/this.bodies[i].m,this.bodies[i].pos.x,this.bodies[i].vel.x,dt);
 			var new_y_vals = numericalMethod(netForce.y/this.bodies[i].m,this.bodies[i].pos.y,this.bodies[i].vel.y,dt);
 			var new_z_vals = numericalMethod(netForce.z/this.bodies[i].m,this.bodies[i].pos.z,this.bodies[i].vel.z,dt);
