@@ -21,26 +21,27 @@
 			var camera,scene,renderer,group,controls;
 			var bodies = new Array();
 			var bodyField;
-			var sun,earth;
-			var skyBoxSize = 10000;
+			//var sun,earth;
+			var skyBoxSize = 1; //km
 			var sphereComplexity = 20;
-			var numUpdatesPerFrame = 4;
-			var updateDt = 1;
-			var axisLength = 250;
-			var FoV = 100;
-			var nearFieldDistance = 1;
-			
+			var numUpdatesPerFrame = 1440;
+			var updateDt = 60; //second
+			var axisLength = 1e7; //km
+			var FoV = 65;
+			var nearFieldDistance = 1; //km
+			var farFieldDistance = 1e50; //km
+			var objDisplayScale = 100;
 			init();
 			animate();
 			
 			function init(){
 				//Create Camera
-				camera = new THREE.PerspectiveCamera(FoV,window.innerWidth/window.innerHeight,nearFieldDistance,skyBoxSize*Math.sqrt(3));
-				camera.position.z = 500;
+				camera = new THREE.PerspectiveCamera(FoV,window.innerWidth/window.innerHeight,nearFieldDistance,farFieldDistance);
+				camera.position.z = 1e8; //km
 				
 				//Create Camera Controls
 				controls = new THREE.OrbitControls(camera);
-				controls.maxDistance = skyBoxSize*0.5; //MAGIC# to prevent skybox clipping
+				//controls.maxDistance = skyBoxSize*0.5; //MAGIC# to prevent skybox clipping
 				
 				//Create Scene
 				scene = new THREE.Scene();
@@ -48,19 +49,17 @@
 				//Create/Add Body Group (lots of MAGIC#s)
 				group = new THREE.Object3D();
 				
-				sun = newSphereMesh(50,'img/sun.jpg');
-				group.add(sun);
-				bodies.push(new GBody(new Vector3(0,0,0),new Vector3(0,0,0),1000000000000));
-				
-				earth = newSphereMesh(10,'img/earth.jpg');
-				earth.position.x+=100;
-				group.add(earth);
-				bodies.push(new GBody(new Vector3(100,0,0),new Vector3(0.4,0.8,0.4),100));
-				
-				mars = newSphereMesh(10,'img/mars.jpg');
-				mars.position.x+=-100;
-				group.add(mars);
-				bodies.push(new GBody(new Vector3(-100,0,0),new Vector3(0.4,0.8,0.4),100));
+				addBody(bodies,group,'img/sun.jpg',0,0,0,0,0,0,1.9891e30,6.963e5*objDisplayScale);
+				addBody(bodies,group,'img/mercury.jpg',5.100234916274346E+07,-2.886237297732457E+07,-7.037707344796795E+06,1.444389898388897E+01,4.462253420599723E+01,2.320729266892391E+00,3.302E+23,2440*objDisplayScale);
+				addBody(bodies,group,'img/venus.jpg',9.843957283494544E+07,-4.609756778002185E+07,-6.312869108934705E+06,1.465249983842665E+01,3.156612873959419E+01,-4.130989453878685E-01,48.685E+23,6051.8*objDisplayScale);
+				addBody(bodies,group,'img/earth.jpg',1.348954778254672e08,6.334023280918378e07,-2.225774321604393e03,-1.314170244295632e01,2.684105213052508e01,2.663552431853514e-04,5.97219e24,6371.01*objDisplayScale);
+				addBody(bodies,group,'img/moon.jpg',1.352560300395282E+08,6.347231808543085E+07,8.363773441111856E+03,-1.345092654899749E+01,2.781803795587427E+01,-8.863398488106179E-02,734.9E+20,1737.53*objDisplayScale);
+				addBody(bodies,group,'img/mars.jpg',-1.311296535819480e08,2.067973903445004e08,7.551506517372828e06,-1.954643693705775e01,-1.091350836296569e01,2.511530263047043e-01,6.4185e23,3389.9*objDisplayScale);
+				addBody(bodies,group,'img/jupiter.jpg',-1.157705969215072E+08,7.639087258130170E+08,-5.820759235094975E+05,-1.308758620185795E+01,-1.339671682589659E+00,2.984380976610554E-01,1898.13E+24,69911*objDisplayScale);
+				addBody(bodies,group,'img/saturn.jpg',-1.070197173992072E+09,-1.014096535430216E+09,6.023976156446648E+07,6.109894216722632E+00,-7.036320898490545E+00,-1.214996563984397E-01,5.68319E+26,58232*objDisplayScale);
+				addBody(bodies,group,'img/uranus.jpg',2.947509912662524E+09,5.458707317807583E+08,-3.614886487663756E+07,-1.299976670464057E+00,6.376324436553403E+00,4.068699841790921E-02,86.8103E+24,25362*objDisplayScale);
+				addBody(bodies,group,'img/neptune.jpg',4.033778665989448E+09,-1.960275650305377E+09,-5.257633177959759E+07,2.329599868163219E+00,4.918808156891473E+00,-1.546314978986296E-01,102.41E+24,24624*objDisplayScale);
+				addBody(bodies,group,'img/pluto.jpg',9.010692851559881E+08,-4.775425618490759E+09,2.503877354786627E+08,5.452508335931772E+00,-7.660590939543425E-02,-1.575239736933509E+00,1.309E+22,1151*objDisplayScale);
 				
 				bodyField = new GBodyField(bodies);
 				
@@ -114,6 +113,20 @@
 				camera.updateProjectionMatrix();
 				//Set Renderer Size
 				renderer.setSize(window.innerWidth,window.innerHeight);
+			}
+			
+			//Helper Function to Add Body
+			function addBody(bodies, group, texturePath, x0, y0, z0, vx0, vy0, vz0, m, r)
+			{
+				var body = newSphereMesh(r,texturePath);
+				body.position.x+=x0;
+				body.position.y+=y0;
+				body.position.z+=-z0;
+				group.add(body);
+				bodies.push(new GBody(new Vector3(x0,y0,z0),
+									  new Vector3(vx0,vy0,vz0),
+									  m));
+				return body;
 			}
 			
 			//Helper Function to Create a New Line Object

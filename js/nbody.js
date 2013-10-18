@@ -12,8 +12,8 @@
  *
  */
 
-var gravityDistanceThreshold = 0.1;
-var G = 0.0000000000667383
+var gravityDistanceThreshold = 0.1; //km
+var G = 6.67384e-20; //((km^(3))*(kg^(-1))*(s^(-2)))
 
 //Simple Vector Object
 function Vector3(X,Y,Z){
